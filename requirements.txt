@@ -1,0 +1,14 @@
+numpy>=2.0
+pandas>=2.0
+scipy>=1.13
+scikit-learn>=1.5
+matplotlib
+seaborn
+streamlit>=1.40
+plotly>=5.20
+google-cloud-bigquery>=3.20
+google-cloud-storage>=2.18
+google-genai>=1.0
+python-docx
+pyarrow
+tqdm
