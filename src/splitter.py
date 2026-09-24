@@ -22,7 +22,9 @@ def split(df: pd.DataFrame, strategy: SplitStrategy = "by_replicate", seed: int 
 
     elif strategy == "by_board":
         boards = sorted(df["board"].dropna().unique())
-        n_test = max(2, len(boards) // 7)
+        if len(boards) < 2:
+            raise ValueError("A board holdout requires at least two distinct boards.")
+        n_test = min(len(boards) - 1, max(2, len(boards) // 7))
         test_boards = rng.choice(boards, size=n_test, replace=False)
         df["split"] = np.where(df["board"].isin(test_boards), "test", "train")
         print(f"  test boards: {sorted(test_boards.tolist())}")
@@ -41,7 +43,9 @@ def split(df: pd.DataFrame, strategy: SplitStrategy = "by_replicate", seed: int 
 
     elif strategy == "combined":
         boards = sorted(df["board"].dropna().unique())
-        test_boards = set(rng.choice(boards, size=max(2, len(boards) // 7), replace=False))
+        if len(boards) < 2:
+            raise ValueError("A combined split requires at least two distinct boards.")
+        test_boards = set(rng.choice(boards, size=min(len(boards) - 1, max(2, len(boards) // 7)), replace=False))
         df["split"] = "train"
         df.loc[
             df["board"].isin(test_boards) & df["replicate"].isin([4, 5]),
@@ -52,6 +56,8 @@ def split(df: pd.DataFrame, strategy: SplitStrategy = "by_replicate", seed: int 
         raise ValueError(f"Unknown strategy: {strategy}")
 
     counts = df["split"].value_counts().to_dict()
+    if not counts.get("train") or not counts.get("test"):
+        raise ValueError(f"{strategy} produced an empty train or test partition.")
     print(f"[split={strategy}] {counts}")
     return df
 

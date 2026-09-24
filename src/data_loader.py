@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from src.config import DATA_ROOT, TEST_CSV, N_SAMPLES
 
@@ -30,13 +31,23 @@ def load_test_metadata(path: Path = TEST_CSV) -> pd.DataFrame:
     return df
 
 
+def normalize_label(value: str) -> str:
+    """Collapse spelling/spacing variants of the three documented lab conditions."""
+    key = re.sub(r"[\s-]+", "", str(value)).lower()
+    labels = {"30nm": "30NM", "loose": "Loose", "mix45deg": "Mix-45", "mix45": "Mix-45"}
+    if key not in labels:
+        raise ValueError(f"Unknown bolt-condition label: {value!r}")
+    return labels[key]
+
+
 def discover_captures(root: Path = DATA_ROOT) -> pd.DataFrame:
     """Walk the tree and join with Test.csv; returns one row per capture CSV."""
     rows = []
-    for csv_path in tqdm(list(root.rglob("*.csv")), desc="Discovering CSVs"):
+    root = Path(root)
+    for csv_path in tqdm(sorted(root.rglob("*.csv")), desc="Discovering CSVs"):
         if csv_path.name == "Test.csv":
             continue
-        m = CAPTURE_RE.match(str(csv_path))
+        m = CAPTURE_RE.match(csv_path.as_posix())
         if not m:
             continue
         d = m.groupdict()
@@ -48,10 +59,16 @@ def discover_captures(root: Path = DATA_ROOT) -> pd.DataFrame:
             "ts": d["ts"],
         })
 
+    if not rows:
+        raise ValueError(f"No capture CSVs found under {root}. See docs/DATA.md.")
     captures = pd.DataFrame(rows)
     captures["test_id_int"] = captures["test_id"].astype(int)
 
-    meta = load_test_metadata()
+    meta = load_test_metadata(root / "Test.csv")
+    required = {"Test", "Run", "Bolt Status", *EXCITATION_COLS}
+    missing = required - set(meta.columns)
+    if missing:
+        raise ValueError(f"Test.csv is missing columns: {sorted(missing)}")
     meta["test_id_int"] = meta["Test"].astype(int)
     meta_slim = meta[["Run", "test_id_int", "Bolt Status"] + EXCITATION_COLS].copy()
 
@@ -60,13 +77,15 @@ def discover_captures(root: Path = DATA_ROOT) -> pd.DataFrame:
         left_on=["run", "test_id_int"],
         right_on=["Run", "test_id_int"],
         how="left",
+        validate="many_to_one",
     )
 
     unmatched = merged["Bolt Status"].isna().sum()
     if unmatched:
-        print(f"WARNING: {unmatched} captures had no Test.csv match")
+        raise ValueError(f"{unmatched} captures have no Test.csv label; extraction stopped.")
 
     merged = merged.rename(columns={"Bolt Status": "label", **EXCITATION_RENAME})
+    merged["label"] = merged["label"].map(normalize_label)
     merged["replicate"] = merged["test_id_int"].apply(_replicate)
     merged = merged.drop(columns=["Run", "test_id_int"])
 
@@ -91,18 +110,25 @@ def load_capture(path) -> pd.DataFrame:
         elif cl in ("zaxis", "z"):
             rename_map[c] = "Z-Axis"
     df = df.rename(columns=rename_map)
+    axes = ["X-axis", "Y-Axis", "Z-Axis"]
+    if not df.columns.is_unique:
+        raise ValueError("Capture has duplicate axis columns.")
+    missing = set(axes) - set(df.columns)
+    if missing:
+        raise ValueError(f"Capture is missing axes: {sorted(missing)}")
+    if len(df) < N_SAMPLES:
+        raise ValueError(f"Capture needs at least {N_SAMPLES} samples; received {len(df)}.")
+    arr = df[axes].iloc[:N_SAMPLES].to_numpy(dtype=float)
+    if not np.isfinite(arr).all():
+        raise ValueError("Capture contains missing or non-finite samples.")
     return df
 
 
 def load_capture_array(path):
-    """Returns (N, 3) numpy array of [X, Y, Z]. Trims/pads to N_SAMPLES."""
-    import numpy as np
+    """Return the first N_SAMPLES validated samples; never pad missing observations."""
     df = load_capture(path)
     arr = df[["X-axis", "Y-Axis", "Z-Axis"]].to_numpy(dtype=float)
-    if arr.shape[0] >= N_SAMPLES:
-        return arr[:N_SAMPLES]
-    pad = np.zeros((N_SAMPLES - arr.shape[0], 3))
-    return np.vstack([arr, pad])
+    return arr[:N_SAMPLES]
 
 
 if __name__ == "__main__":

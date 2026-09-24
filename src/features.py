@@ -111,7 +111,11 @@ def extract_features_one_axis(x: np.ndarray, axis_name: str) -> dict:
 
 
 def extract_features(capture: np.ndarray) -> dict:
-    """capture: (N, 3) array of [X, Y, Z]. Returns ~90 features as flat dict."""
+    """Extract 104 features from a finite (N, 3) signal."""
+    if capture.ndim != 2 or capture.shape[1] != 3 or len(capture) < 2:
+        raise ValueError("Expected a signal with at least two samples and three axes.")
+    if not np.isfinite(capture).all():
+        raise ValueError("Signal must contain only finite samples.")
     feats = {}
     for i, axis in enumerate(["x", "y", "z"]):
         feats.update(extract_features_one_axis(capture[:, i], axis))
@@ -131,5 +135,5 @@ def extract_features_batch(paths_df: pd.DataFrame, load_fn) -> pd.DataFrame:
             feats.update(row._asdict())
             feature_rows.append(feats)
         except Exception as e:
-            print(f"FAIL {row.path}: {e}")
+            raise ValueError(f"Feature extraction failed for {row.path}; no partial dataset saved.") from e
     return pd.DataFrame(feature_rows)
