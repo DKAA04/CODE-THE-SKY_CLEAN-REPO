@@ -24,16 +24,15 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Model accuracy", "82.6%", "by-board (honest)")
-c2.metric("Cross-validated", "82.0%", "BQML · ROC-AUC 0.952")
-c3.metric("Dataset", "8,221", "captures · 27 kHz · 3-axis")
-c4.metric("Inference", "~200ms", "$0.01 / scan at scale")
+st.info("Research prototype. Predictions require a locally trained model and an authorized dataset.")
+st.caption("Historical author-reported results: 82.6% local by-board accuracy; "
+           "82.0% BigQuery ML. These are not measurements of this running session. "
+           "See the README for reproducibility and split limitations.")
 
 st.divider()
 
 st.title("Structural Integrity Monitor")
-st.caption("Vibration-based bolt-condition classifier · ADB Safegate Code the Sky 2026 · github.com/DKAA04/CODE-THE-SKY-CS1")
+st.caption("Vibration-based bolt-condition classifier · ADB Safegate Code the Sky 2026 · github.com/DKAA04/CODE-THE-SKY_CLEAN-REPO")
 
 uploaded = st.file_uploader("Upload a vibration capture (CSV)", type=["csv"])
 
@@ -44,6 +43,9 @@ if uploaded is not None:
 
     feats = extract_features(arr)
 
+    if not (PROCESSED_DIR / "model_gbm.joblib").exists():
+        st.warning("No trained model found. Follow the README to prepare an authorized dataset and train the model locally.")
+        st.stop()
     bundle = load_model()
     clf = bundle["model"]
     feature_cols = bundle["feature_cols"]
