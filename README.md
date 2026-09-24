@@ -1,8 +1,21 @@
 # Code the Sky — Structural Integrity Classifier
 
+**2nd place — Code the Sky Hackathon (2026).**
+
 **Vibration-signal classification with explicit evaluation of train/test split choices.**
 
 This project extracts time-domain and FFT-based features from three-axis vibration captures, trains classifiers for bolt-condition labels, and provides a Streamlit interface for inspecting a capture and its prediction. The code includes local scikit-learn training and a separate BigQuery ML path.
+
+## Signal pipeline
+
+```mermaid
+flowchart LR
+    A[Three-axis vibration capture] --> B[Time and FFT features]
+    B --> C[Explicit train / test split]
+    C --> D[Classifier training]
+    D --> E[Held-out evaluation]
+    B --> F[Trained model + Streamlit inspection]
+```
 
 ## Technical focus
 
@@ -69,6 +82,6 @@ Review the project and dataset identifiers in [src/config.py](src/config.py) and
 
 ## Boundaries
 
-This is a classification prototype, not a validated aviation inspection system. The demo contains static historical performance and cost labels; these are not live measurements. Commercial estimates are proposal material rather than validated operating results. Dataset redistribution rights must be checked before adding raw captures or derived artifacts.
+This is a classification prototype, not a validated aviation inspection system. The interface labels historical results explicitly and does not display unmeasured inference-time or cost claims. Missing model artifacts produce a setup message. Commercial estimates are proposal material rather than validated operating results. Dataset redistribution rights must be checked before adding raw captures or derived artifacts.
 
 **Stack:** Python, NumPy, pandas, SciPy, scikit-learn, Streamlit, Plotly and BigQuery ML.
