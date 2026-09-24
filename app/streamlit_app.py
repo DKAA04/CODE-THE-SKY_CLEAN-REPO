@@ -9,6 +9,7 @@ import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from src.features import fft_magnitude, extract_features
 from src.config import SAMPLE_RATE_HZ, PROCESSED_DIR
+from src.data_loader import load_capture_array
 
 
 @st.cache_resource
@@ -25,9 +26,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.info("Research prototype. Predictions require a locally trained model and an authorized dataset.")
-st.caption("Historical author-reported results: 82.6% local by-board accuracy; "
-           "82.0% BigQuery ML. These are not measurements of this running session. "
-           "See the README for reproducibility and split limitations.")
+st.caption("See reports/evaluation.md for the recorded held-out evaluation and split limitations. "
+           "Model probabilities are uncalibrated scores, not a safety assessment.")
 
 st.divider()
 
@@ -37,9 +37,14 @@ st.caption("Vibration-based bolt-condition classifier · ADB Safegate Code the S
 uploaded = st.file_uploader("Upload a vibration capture (CSV)", type=["csv"])
 
 if uploaded is not None:
-    df = pd.read_csv(uploaded)
-    df.columns = [c.strip() for c in df.columns]
-    arr = df[["X-axis", "Y-Axis", "Z-Axis"]].to_numpy(dtype=float)[:8192]
+    if uploaded.size > 5 * 1024 * 1024:
+        st.error("Please upload a single capture smaller than 5 MB.")
+        st.stop()
+    try:
+        arr = load_capture_array(uploaded)
+    except (ValueError, KeyError, pd.errors.ParserError) as exc:
+        st.error(f"Invalid capture: {exc}")
+        st.stop()
 
     feats = extract_features(arr)
 
@@ -56,11 +61,11 @@ if uploaded is not None:
     probs = clf.predict_proba(x)[0]
 
     if pred == "30NM":
-        color = "#1D9E75"; emoji_label = "HEALTHY"; sub = "30 N·m torque - tight joint"
+        color = "#1D9E75"; emoji_label = "30 N·m — TIGHT"; sub = "30 N·m torque - tight joint"
     elif pred == "Loose":
-        color = "#E24B4A"; emoji_label = "LOOSE BOLTS"; sub = "Resonance shifted to ~150 Hz - immediate fault"
+        color = "#E24B4A"; emoji_label = "LOOSE BOLTS"; sub = "Predicted laboratory bolt-condition class"
     else:
-        color = "#EF9F27"; emoji_label = "MIX-45 DEG FAULT"; sub = "Partial stiffness loss"
+        color = "#EF9F27"; emoji_label = "MIX-45 DEG FAULT"; sub = "Predicted laboratory bolt-condition class"
 
     confidence = probs[list(classes).index(pred)]
 
@@ -75,7 +80,7 @@ if uploaded is not None:
       </div>
       <div style="font-size: 14px; color: #aaa;">{sub}</div>
       <div style="font-size: 13px; color: #888; margin-top: 8px;">
-        Confidence: <strong style="color: {color};">{confidence:.1%}</strong>
+        Model probability (uncalibrated): <strong style="color: {color};">{confidence:.1%}</strong>
     </div>
     </div>
     """, unsafe_allow_html=True)
