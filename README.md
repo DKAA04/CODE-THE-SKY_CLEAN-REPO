@@ -1,9 +1,11 @@
 # Code the Sky — Structural Integrity Classifier
 
-**2nd place · Code the Sky Hackathon (2026)**  
+**2nd place · Solo entry · Code the Sky Hackathon (2026)**  
 Vibration-signal classification, with an explicit test of generalization to unseen sensor boards.
 
-This team hackathon project extracts time-domain and FFT features from three-axis vibration recordings and classifies three laboratory bolt conditions. The public version includes a local training pipeline, a Streamlit inspection interface, reviewed challenge data artifacts and a reproducible evaluation.
+I entered the hackathon solo and built the original project end to end: signal analysis, feature extraction, model training and evaluation, the Streamlit interface, the BigQuery path and the presentation.
+
+The project extracts time-domain and FFT features from three-axis vibration recordings and classifies three laboratory bolt conditions. The public version includes a local training pipeline, a Streamlit inspection interface, reviewed challenge data artifacts and a reproducible evaluation.
 
 ## Evidence at a glance
 
@@ -72,7 +74,7 @@ Then run `python scripts/extract_all_features.py` followed by `python scripts/ev
 
 ## What was improved
 
-The September 2026 portfolio pass, completed with Codex assistance, normalized the two spellings of the partially loosened class, added validation for missing axes, incomplete and non-finite captures, made data loading respect the supplied root, guarded empty/invalid holdouts, and published the evaluation evidence. These changes are separate from the original team hackathon work. This repository does not attribute every team component to one contributor.
+The September 2026 portfolio pass, completed with Codex assistance, normalized the two spellings of the partially loosened class, added validation for missing axes, incomplete and non-finite captures, made data loading respect the supplied root, guarded empty/invalid holdouts, and published the evaluation evidence. These changes are separate from my original solo hackathon implementation.
 
 The three normalized classes are `30NM`, `Loose` and `Mix-45`. The new evaluation supersedes the earlier unverified local results. Historical BigQuery ML results were not rerun.
 
